@@ -1,92 +1,17 @@
 <?php
 /**
-* HTTPFS PHP Server 
+* HTTPFS API
 */
-class httpfs {
-
-  /**
-  * PHP Error message will be set in this variable if VERBOSE flag is set
-  * @var string
-  */
-  protected $errorMessage = '';
-
-  /**
-  * Contains the operation codes/httpfs-api
-  * @var array
-  */
-  protected $opCodeNames = array();
-
-  /**
-  * Initialize httpfs object
-  */
-  public function __construct() {  
-    error_reporting(0);
-    if (VERBOSE) {
-      set_error_handler(array($this, 'storeError'));
-    }
-  }
-
-  /**
-  * Perform operation
-  */
-  public function do() {
-    $post = file_get_contents('php://input');
-    $opcode = ord($post);
-    call_user_func(
-      array(
-        $this,
-        $this->camelToUnderline(
-          $this->opCodeNames[$opcode]
-        )
-      ),
-      substr($post, 1)
-    );
-  }
-
-  /* UTILITY STUFF */
-
-  /**
-  * Convert camelcase notation to underline notation
-  */
-  protected function camelToUnderline($str) {
-    return strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $str));
-  }
-
-  /**
-  * Store php error message in $this->errorMessage for debugging purpose
-  */
-  protected function storeError($errno, $error) {
-    $this->errorMessage = $error;
-  }
-
-  /**
-  * Output OK message
-  */
-  protected function dumpOk() {
-    printf('%c', OK);
-  }
-
-  /**
-  * Output error message
-  */
-  protected function dumpError($error, $customErrorMessage = NULL) {
-    printf('%c', $error);
-    $message = $customErrorMessage ? $customErrorMessage : $this->errorMessage;
-    if ($message) {
-      echo $message;
-    }
-  }
-
-  /* FUSE API STUFF */
+class HTTPFS {
 
   /**
   * Get attributes
   */
-  protected function httpfsGetattr($data) {
+  public static function httpfs_getattr($data) {
     $fields = unpack('a*path', $data);
     $s = lstat($fields['path']);
     if ($s) {
-      $this->dumpOk();
+      printf('%c', OK);
       echo pack(
         'NNNNNNNNNNNNN',
         $s['dev'],
@@ -104,198 +29,198 @@ class httpfs {
         $s['blocks']
       );
     } else {
-      $this->dumpError(ENTRY_NOT_FOUND);
+      printf('%c', ENTRY_NOT_FOUND);
     }
   }
 
   /**
   * Get directory content
   */
-  protected function httpfsReaddir($data) {
+  public static function httpfs_readdir($data) {
     $fields = unpack('a*path', $data);
     $d = scandir($fields['path']);
     if ($d) {
-      $this->dumpOk();
+      printf('%c', OK);
       foreach ($d as $entry) {
         echo "$entry\x00";
       }
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Read file
   */
-  protected function httpfsRead($data) {
+  public static function httpfs_read($data) {
     $fields = unpack('Nsize/Noffset/a*path', $data);
     $f = fopen($fields['path'], 'r');
     if ($f) {
-      $this->dumpOk();
+      printf('%c', OK);
       fseek($f, $fields['offset']);
       echo fread($f, $fields['size']);
       fclose($f);
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Write file
   */
-  protected function httpfsWrite($data) {
+  public static function httpfs_write($data) {
     $fields = unpack('Nsize/Noffset', $data);
     list($path, $writeData) = explode("\x00", substr($data, 8), 2);
     $f = fopen($path, 'a');
     if ($f) {
-      $this->dumpOk();
+      printf('%c', OK);
       fseek($f, $fields['offset']);
       $writeSize = fwrite($f, $writeData, $fields['size']);
       fclose($f);
       echo pack('N', $writeSize);
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Truncate file
   */
-  protected function httpfsTruncate($data) {
+  public static function httpfs_truncate($data) {
     $fields = unpack('Noffset/a*path', $data);
     $f = fopen($fields['path'], 'r+');
     if ($f) {
-      $this->dumpOk();
+      printf('%c', OK);
       ftruncate($f, $fields['offset']);
       fclose($f);
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Create file
   */
-  protected function httpfsCreate($data) {
+  public static function httpfs_create($data) {
     $fields = unpack('Nmode/a*path', $data);
     $f = fopen($fields['path'], 'w');
     if ($f) {
-      $this->dumpOk();
+      printf('%c', OK);
       fclose($f);
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Delete file
   */
-  protected function httpfsUnlink($data) {
+  public static function httpfs_unlink($data) {
     $fields = unpack('a*path', $data);
     $u = unlink($fields['path']);
     if ($u) {
-      $this->dumpOk();
+      printf('%c', OK);
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Create directory
   */
-  protected function httpfsMkdir($data) {
+  public static function httpfs_mkdir($data) {
     $fields = unpack('Nmode/a*path', $data);
     $m = mkdir( $fields[ 'path' ] , $fields[ 'mode' ] );
     if ($m) {
-      $this->dumpOk();
+      printf('%c', OK);
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Delete directory
   */
-  protected function httpfsRmdir($data) {
+  public static function httpfs_rmdir($data) {
     $fields = unpack('a*path', $data);
     $u = rmdir($fields['path']);
     if ($u) {
-      $this->dumpOk();
+      printf('%c', OK);
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Rename path
   */
-  protected function httpfsRename($data) {
+  public static function httpfs_rename($data) {
     list($path, $newpath) = explode("\x00", $data, 2);
     $r = rename($path, $newpath);
     if ($r) {
-      $this->dumpOk();
+      printf('%c', OK);
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Create hard link
   */
-  protected function httpfsLink($data) {
+  public static function httpfs_link($data) {
     list($path, $newpath) = explode("\x00", $data, 2);
     $r = link($path, $newpath);
     if ($r) {
-      $this->dumpOk();
+      printf('%c', OK);
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Read original path for symbolic link
   */
-  protected function httpfsReadlink($data) {
+  public static function httpfs_readlink($data) {
     $fields = unpack('a*path', $data);
     $r = readlink($fields['path']);
     if ($r) {
-      $this->dumpOk();
+      printf('%c', OK);
       echo $r;
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Create symbolic link
   */
-  protected function httpfsSymlink($data) {
+  public static function httpfs_symlink($data) {
     list($path, $newpath) = explode("\x00", $data, 2);
     $s = symlink($path, $newpath);
     if ($s) {
-      $this->dumpOk();
+      printf('%c', OK);
     } else {
-      $this->dumpError(CANNOT_ACCESS);
+      printf('%c', CANNOT_ACCESS);
     }
   }
 
   /**
   * Change path access modes
   */
-  protected function httpfsChmod($data) {
+  public static function httpfs_chmod($data) {
     $fields = unpack('Nmode/a*path', $data);
     $c = chmod($fields['path'], $fields['mode']);
     if ($c) {
-      $this->dumpOk();
+      printf('%c', OK);
     } else {
-      $this->dumpError(NOT_PERMITTED);
+      printf('%c', NOT_PERMITTED);
     }
   }
 
   /**
   * Change path owner
   */
-  protected function httpfsChown($data) {
+  public static function httpfs_chown($data) {
     $fields = unpack('Nuid/Ngid/a*path', $data);
     if ($fields['uid'] != 0xffffffff) {
       $u = chown($fields['path'], $fields['uid']);
@@ -306,13 +231,44 @@ class httpfs {
       $u = TRUE;
     }
     if ($u && $g) {
-      $this->dumpOk();
+      printf('%c', OK);
     } else {
-      $this->dumpError(NOT_PERMITTED);
+      printf('%c', NOT_PERMITTED);
     }
   }
 }
 
+/**
+* HTTPFS PHP Server 
+*/
+class server {
+
+  /**
+  * Contains the operation codes/httpfs-api
+  * @var array
+  */
+  protected $opCodeNames = array();
+
+  /**
+  * Initialize httpfs object
+  */
+  public function __construct($opCodeNames) {  
+    error_reporting(0);
+    if (VERBOSE) {
+      error_reporting(E_ALL);
+    }
+    $this->opCodeNames = $opCodeNames;
+  }
+
+  /**
+  * Perform operation
+  */
+  public function perform($post) {
+    $opcode = ord($post);
+    forward_static_call(array('HTTPFS', $this->opCodeNames[$opcode]), substr($post, 1));
+  }
+}
+
 // initialize and run operation
-$httpfs = new httpfs($HTTPFS_OPCODE_NAMES);
-$httpfs->do();
+$server = new server($HTTPFS_OPCODE_NAMES);
+$server->perform(file_get_contents('php://input'));
