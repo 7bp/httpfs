@@ -36,7 +36,7 @@ void httpfs_generate_php()
 
     for ( p = HTTPFS_OPCODE_NAMES ; *p ; p++ )
     {
-        printf( "    'httpfs_%s' ,\n" , *p );
+        printf( "  'httpfs_%s',\n" , *p );
     }
 
     printf( ");\n\n" );
@@ -44,12 +44,12 @@ void httpfs_generate_php()
     /* status codes numeric constants */
     for ( p = HTTPFS_STATUS_NAMES ; *p ; p++ )
     {
-        printf( "define( '%s' , %i );\n" ,
+        printf( "define('%s', %i);\n" ,
                 *p , ( int )( p - HTTPFS_STATUS_NAMES ) );
     }
 
     /* verbose mode */
-    if ( HTTPFS_VERBOSE ) printf( "\ndefine( 'VERBOSE' , TRUE );\n\n" );
+    if ( HTTPFS_VERBOSE ) printf( "\ndefine('VERBOSE', TRUE);\n\n" );
 
     printf( "\n?>" );
 
